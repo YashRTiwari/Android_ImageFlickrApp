@@ -1,31 +1,32 @@
 package com.example.flickrdummyapp.fragments;
 
 
+import android.graphics.Color;
 import android.os.Bundle;
 
 import androidx.databinding.DataBindingUtil;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProviders;
+import androidx.paging.PageKeyedDataSource;
 import androidx.paging.PagedList;
 import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import com.example.flickrdummyapp.DataLoaderInterface;
+import com.example.flickrdummyapp.MainActivity;
 import com.example.flickrdummyapp.R;
 import com.example.flickrdummyapp.adapters.RecentPhotoRVAdapter;
 import com.example.flickrdummyapp.databinding.FragmentRecentPhotosBinding;
+import com.example.flickrdummyapp.paging_lib.PhotoDataSource;
 import com.example.flickrdummyapp.paging_lib.PhotoViewModel;
 import com.example.flickrdummyapp.retrofit.entity.PhotoListEntity.Photo;
+import com.google.android.material.snackbar.Snackbar;
 
-import static androidx.recyclerview.widget.StaggeredGridLayoutManager.VERTICAL;
+import static com.example.flickrdummyapp.utils.CommonUtils.isNetworkAvailable;
 
 
 /**
@@ -50,12 +51,44 @@ public class RecentPhotosFragment extends Fragment implements DataLoaderInterfac
         GridLayoutManager manager = new GridLayoutManager(getContext(), 3);
         binding.rv.setLayoutManager(manager);
         binding.rv.setHasFixedSize(true);
-        //PhotoViewModel photoViewModel = ViewModelProviders.of(this).get(PhotoViewModel.class);
-        PhotoViewModel photoViewModel = new PhotoViewModel(getContext(), this);
-
         binding.rv.setVisibility(View.GONE);
         binding.llPg.setVisibility(View.VISIBLE);
+        if (!isNetworkAvailable(getContext())) {
+            binding.rv.setVisibility(View.GONE);
+            binding.llPg.setVisibility(View.GONE);
+            checkNetwork();
+        }else
+            setAdapter();
+        return binding.getRoot();
+    }
 
+    private void checkNetwork(){
+
+        Snackbar snackbar = Snackbar
+                .make(binding.getRoot(), "No internet connection!", Snackbar.LENGTH_INDEFINITE)
+                .setAction("RETRY", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        if (isNetworkAvailable(getContext())){
+                            binding.rv.setVisibility(View.GONE);
+                            binding.llPg.setVisibility(View.VISIBLE);
+                            setAdapter();
+                        } else {
+                            binding.rv.setVisibility(View.GONE);
+                            binding.llPg.setVisibility(View.GONE);
+                            checkNetwork();
+
+                        }
+                    }
+                });
+        snackbar.setActionTextColor(Color.RED);
+        snackbar.show();
+
+    }
+
+
+    private void setAdapter(){
+        PhotoViewModel photoViewModel = new PhotoViewModel(getContext(), this);
         adapter = new RecentPhotoRVAdapter(getContext());
         photoViewModel.photoPagedList.observe(this, new Observer<PagedList<Photo>>() {
             @Override
@@ -70,7 +103,6 @@ public class RecentPhotosFragment extends Fragment implements DataLoaderInterfac
             }
         });
         binding.rv.setAdapter(adapter);
-        return binding.getRoot();
     }
 
     @Override
@@ -85,5 +117,29 @@ public class RecentPhotosFragment extends Fragment implements DataLoaderInterfac
         binding.pg.setVisibility(View.GONE);
         binding.llPg.setVisibility(View.VISIBLE);
         binding.tv.setText("Opps, something definitely went wrong!!");
+    }
+
+    @Override
+    public void noInternetConnection(Object params,Object callback, int ID) {
+        binding.llPg.setVisibility(View.GONE);
+        showNoInternetSnackBar(params,callback, ID);
+    }
+
+    private void showNoInternetSnackBar(Object params,Object callback, int ID){
+        Snackbar snackbar = Snackbar
+                .make(binding.getRoot(), "No internet connection!", Snackbar.LENGTH_INDEFINITE)
+                .setAction("RETRY", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        if (isNetworkAvailable(getContext())){
+                            PhotoDataSource dataSource = new PhotoDataSource(getContext(), RecentPhotosFragment.this);
+                            dataSource.retry(params, callback, ID);
+                        } else {
+                            showNoInternetSnackBar(params, callback, ID);
+                        }
+                    }
+                });
+        snackbar.setActionTextColor(Color.RED);
+        snackbar.show();
     }
 }

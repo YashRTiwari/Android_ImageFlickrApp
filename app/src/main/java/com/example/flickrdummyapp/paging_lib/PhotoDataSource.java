@@ -25,6 +25,8 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 import okhttp3.ResponseBody;
 
+import static com.example.flickrdummyapp.utils.CommonUtils.isNetworkAvailable;
+
 public class PhotoDataSource extends PageKeyedDataSource<Integer, Photo> {
 
     public static final int PAGE_SIZE = 20;
@@ -39,13 +41,21 @@ public class PhotoDataSource extends PageKeyedDataSource<Integer, Photo> {
     private String searchItem = null;
     private DataLoaderInterface dataLoaderInterface;
 
-    PhotoDataSource(Context context, DataLoaderInterface dataLoaderInterface){
+    LoadParams<Integer> params;
+    LoadCallback<Integer, Photo> callback;
+    LoadInitialCallback<Integer, Photo> loadInitialCallback;
+    LoadInitialParams<Integer> loadInitialParams;
+    private int LOAD_A = 1;
+    private int LOAD_I = 0;
+    private int LOAD_B = -1;
+
+    public PhotoDataSource(Context context, DataLoaderInterface dataLoaderInterface){
         this.context = context;
         searchItem = null;
         this.dataLoaderInterface = dataLoaderInterface;
     }
 
-    PhotoDataSource(Context context, String searchItem, DataLoaderInterface dataLoaderInterface){
+    public PhotoDataSource(Context context, String searchItem, DataLoaderInterface dataLoaderInterface){
         this.context = context;
         this.searchItem = searchItem;
         this.dataLoaderInterface = dataLoaderInterface;
@@ -54,8 +64,17 @@ public class PhotoDataSource extends PageKeyedDataSource<Integer, Photo> {
 
     @Override
     public void loadInitial(@NonNull LoadInitialParams<Integer> params, @NonNull LoadInitialCallback<Integer, Photo> callback) {
+
+        this.loadInitialParams = params;
+        this.loadInitialCallback = callback;
+
+        if (!isNetworkAvailable(context)){
+            dataLoaderInterface.noInternetConnection(params, callback, LOAD_I);
+            return;
+        }
+
         String url ="";
-        if (searchItem == null){
+        if (searchItem == null) {
             url = NetworkUtils.getRecentPhotosUrl(FIRST_PAGE);
 
         } else {
@@ -104,7 +123,6 @@ public class PhotoDataSource extends PageKeyedDataSource<Integer, Photo> {
 
                         }
 
-
                     }
 
                     @Override
@@ -127,6 +145,17 @@ public class PhotoDataSource extends PageKeyedDataSource<Integer, Photo> {
 
     @Override
     public void loadBefore(@NonNull LoadParams<Integer> params, @NonNull LoadCallback<Integer, Photo> callback) {
+
+        this.callback =callback;
+        this.params = params;
+
+        if (!isNetworkAvailable(context)){
+            dataLoaderInterface.noInternetConnection(params, callback, LOAD_B);
+            return;
+        }
+
+
+
 
         String url ="";
         if (searchItem == null){
@@ -199,6 +228,16 @@ public class PhotoDataSource extends PageKeyedDataSource<Integer, Photo> {
 
     @Override
     public void loadAfter(@NonNull LoadParams<Integer> params, @NonNull LoadCallback<Integer, Photo> callback) {
+
+
+        this.callback =callback;
+        this.params = params;
+
+        if (!isNetworkAvailable(context)){
+            dataLoaderInterface.noInternetConnection(params, callback, LOAD_A);
+            return;
+        }
+
         String url ="";
         if (searchItem == null){
             url = NetworkUtils.getRecentPhotosUrl(params.key);
@@ -267,6 +306,18 @@ public class PhotoDataSource extends PageKeyedDataSource<Integer, Photo> {
                 });
 
     }
+
+
+    public void retry(Object params, Object callback, int ID){
+
+        if (ID == LOAD_A || ID == LOAD_B){
+            loadAfter((LoadParams<Integer>)params, (LoadCallback<Integer, Photo>) callback);
+        } else {
+            loadInitial((LoadInitialParams<Integer>)params,  (LoadInitialCallback<Integer, Photo>) callback);
+        }
+
+    }
+
 
 
 
