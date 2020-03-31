@@ -1,4 +1,4 @@
-# Android_ImageFlickrApp
+# Image Flickr App
 
 Developed this project to learn about <a href="https://developer.android.com/topic/libraries/architecture/paging">Paging Library</a> by creating an Android Applications:
 
@@ -14,8 +14,5 @@ Overview:
 
 </ul>
 
+<a href="https://yashtiwari.tech/project_asset/preview.webm">Watch how it works.</a>
 
-### Preview
-
-<iframe width="420" height="315" src="preview.webm">
-</iframe>
